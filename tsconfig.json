@@ -1,0 +1,28 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "useDefineForClassFields": true,
+        "module": "ESNext",
+        "lib": [
+            "ES2020"
+        ],
+        "skipLibCheck": true,
+        /* Bundler mode */
+        "moduleResolution": "bundler",
+        "esModuleInterop": true,
+        "allowImportingTsExtensions": true,
+        "isolatedModules": true,
+        "moduleDetection": "force",
+        "noEmit": true,
+        /* Linting */
+        "strict": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedSideEffectImports": true,
+        "noImplicitReturns": true,
+        /* Minifying */
+        "removeComments": true
+    },
+    "include": [
+        "src"
+    ]
+}

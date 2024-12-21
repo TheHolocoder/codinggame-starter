@@ -1,0 +1,8 @@
+- [X] Pouvoir fournir des lignes IO via `readline()`
+- [X] Pouvoir lire la réponse de `console.log()` et `console.error()`
+- [X] Abstractions pour une fonction d'évaluation (qui gagne/scoring) et de l'état du jeu
+- [ ] Template / outils pour le parsing + tests
+- [ ] Template / outils pour les game rules + tests
+- [ ] Pouvoir simuler une partie avec un nombre indéfini de bots
+- [ ] ? IA haut niveau (raisonement macro sur la partie en fonction de l'évaluation)
+- [ ] Timer helper
