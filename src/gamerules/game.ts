@@ -1,8 +1,10 @@
 import { BaseGame, Command, PlayerID } from '../../libs/game';
 import { GameState } from './gamestate';
 import { Player, Resources } from './player';
+import { attackRule } from './rules/attack';
 import { collisionRule } from './rules/collision';
 import { growRule } from './rules/grow';
+import { harvestRule } from './rules/harvest';
 import { sporeRule } from './rules/spore';
 import { waitRule } from './rules/wait';
 
@@ -12,7 +14,8 @@ const defaultResources: Resources = {
 };
 
 export class Game extends BaseGame {
-    maxTurns = 1;
+    maxTurns = 10;
+    inProgress = true;
 
     get state(): Readonly<GameState> {
         return this._state;
@@ -28,6 +31,8 @@ export class Game extends BaseGame {
         this.attachRule(SporeEvent, sporeRule);
         this.attachRule(WaitEvent, waitRule);
         this.attachRule(CollisionEvent, collisionRule);
+        this.attachRule(HarvestEvent, harvestRule);
+        this.attachRule(AttackEvent, attackRule);
     }
 
     step() {
@@ -55,7 +60,7 @@ export class Game extends BaseGame {
                 if (!commands[cmd.action]) {
                     commands[cmd.action] = [];
                 }
-                commands[cmd.action].push({...cmd});
+                commands[cmd.action].push({ ...cmd });
             }
 
             //
@@ -94,11 +99,35 @@ export class Game extends BaseGame {
 
     checkEndCondition(): void {
         // one player has no more ROOT
+        for (const player of this.state.players) {
+             if (0 === this.state.entities.filter(entity => entity.owner === player.id && entity.type === 'ROOT').length) {
+                console.info(`Player (${player.id}) has no more roots`);
+                this.inProgress = false;
+
+                return;
+            }
+        }
 
         // turn count
-        
-        // no resources and no harvester
+        if (this.state.turn >= this.maxTurns) {
+            console.info('Max turns elapsed');
+            this.inProgress = false;
 
+            return;
+        }
+
+        // no resources and no harvester
+        for (const player of this.state.players) {
+             if (
+                0 === this.state.entities.filter(entity => entity.owner === player.id && entity.type === 'HARVESTER').length
+                && player.resources.A === 0 && player.resources.B === 0 && player.resources.C === 0 && player.resources.D === 0
+            ) {
+                console.info(`Player (${player.id}) has no more resources`);
+                this.inProgress = false;
+
+                return;
+            }
+        }
     }
 
     computePlayerScore(playerId: PlayerID): number {
@@ -106,7 +135,7 @@ export class Game extends BaseGame {
     }
 
     isInProgress(): boolean {
-        return this.state.turn < this.maxTurns;
+        return this.inProgress;
     }
 
     protected createPlayer(id: PlayerID): Player {

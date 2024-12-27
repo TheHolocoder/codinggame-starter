@@ -7,6 +7,8 @@ export type Resources = {
     D: number;
 };
 
+export const emptyResources: Resources = {A: 0, B: 0, C: 0, D: 0};
+
 export class Player implements IPlayer {
     constructor(
         public readonly id: PlayerID,

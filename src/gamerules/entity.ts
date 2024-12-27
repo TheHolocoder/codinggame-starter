@@ -5,6 +5,8 @@ export type EntityType = 'WALL' | 'ROOT' | 'BASIC' | 'HARVESTER' | 'A' | 'B' | '
 export type OrganDir = 'N' | 'S' | 'E' | 'W' | 'X'; // N,E,S,W or X if not an organ
 
 export class Entity extends Point {
+    targetEntity: Entity | undefined = undefined;
+
     constructor(
         public id: number,
         pos: Point,
@@ -20,7 +22,26 @@ export class Entity extends Point {
         this.y = pos.y;
     }
 
-    isCell = (): boolean => this.type === 'ROOT' || this.type === 'BASIC' || this.type === 'HARVESTER';
+    get targetPosition(): Point | null {
+        if (this.type !== 'HARVESTER' && this.type !== 'TENTACLE') {
+            return null;
+        }
+
+        switch (this.direction) {
+            case 'N':
+                return { x: this.x, y: this.y - 1 };
+            case 'S':
+                return { x: this.x, y: this.y + 1 };
+            case 'E':
+                return { x: this.x + 1, y: this.y };
+            case 'W':
+                return { x: this.x - 1, y: this.y };
+            case 'X':
+                return null;
+        }
+    }
+
+    isCell = (): boolean => this.type === 'ROOT' || this.type === 'BASIC' || this.type === 'HARVESTER' || this.type === 'TENTACLE' || this.type === 'SPORER';
     isWall = (): boolean => this.type === 'WALL';
     isProtein = (): boolean => this.type === 'A' || this.type === 'B' || this.type === 'C' || this.type === 'D';
     isProteinOfType = (type: Extract<EntityType, 'A' | 'B' | 'C' | 'D'>): boolean => this.type === type;
