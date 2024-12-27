@@ -1,13 +1,15 @@
 import { BaseGame, Command, PlayerID } from '../../libs/game';
 import { GameState } from './gamestate';
 import { Player, Resources } from './player';
+import { collisionRule } from './rules/collision';
 import { growRule } from './rules/grow';
+import { sporeRule } from './rules/spore';
+import { waitRule } from './rules/wait';
 
 const GrowEvent = 'grow', SporeEvent = 'spore', WaitEvent = 'wait', CollisionEvent = 'collision', HarvestEvent = 'harvest', AttackEvent = 'attack';
 const defaultResources: Resources = {
     A: 0, B: 0, C: 0, D: 0,
 };
-
 
 export class Game extends BaseGame {
     maxTurns = 1;
@@ -23,6 +25,9 @@ export class Game extends BaseGame {
     initialize(): void {
         // rules:
         this.attachRule(GrowEvent, growRule);
+        this.attachRule(SporeEvent, sporeRule);
+        this.attachRule(WaitEvent, waitRule);
+        this.attachRule(CollisionEvent, collisionRule);
     }
 
     step() {
@@ -39,15 +44,22 @@ export class Game extends BaseGame {
 
         // @TODO: compute #actions per player
 
-        // PLAYER COMMANDS
+        // PLAYER COMMANDS AND ACTIONS
         const commands: Record<string, Command[]> = {};
-        for (const player of this.state.players) {
+        for (const player of this._state.players) {
+            // actions
+            player.actions = this.state.entities.filter(entity => entity.owner === player.id && entity.type === 'ROOT').length;
+
+            // commands
             for (const cmd of player.pendingOutputCommands) {
                 if (!commands[cmd.action]) {
                     commands[cmd.action] = [];
                 }
-                commands[cmd.action].push(cmd);
+                commands[cmd.action].push({...cmd});
             }
+
+            //
+            player.pendingOutputCommands = [];
         }
         for (const cmd of commands['GROW'] ?? []) {
             this.emit(GrowEvent, cmd);
@@ -81,6 +93,11 @@ export class Game extends BaseGame {
     }
 
     checkEndCondition(): void {
+        // one player has no more ROOT
+
+        // turn count
+        
+        // no resources and no harvester
 
     }
 

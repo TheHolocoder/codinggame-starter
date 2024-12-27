@@ -2,45 +2,19 @@ import { BaseGame, Command, RuleResponse } from '../../../libs/game';
 import { Entity, EntityType, OrganDir } from '../entity';
 import { Game } from '../game';
 import { GameState } from '../gamestate';
-import { findEntityAtPosition, findEntityById } from '../helpers';
+import { add, canGrowAtPosition, cellCosts, findEntityAtPosition, findEntityById, isNegative, resourcesToString, substract } from '../helpers';
 import { Player, Resources } from '../player';
-
-const cellCosts = new Map<EntityType, Resources>();
-cellCosts.set('BASIC', {A: 1, B: 0, C: 0, D: 0});
-cellCosts.set('HARVESTER', {A: 0, B: 0, C: 1, D: 1});
-cellCosts.set('TENTACLE', {A: 0, B: 1, C: 1, D: 0});
-cellCosts.set('SPORER', {A: 0, B: 1, C: 0, D: 1});
-cellCosts.set('ROOT', {A: 1, B: 1, C: 1, D: 1});
-
-const substract = (from: Resources, amount: Resources): Resources => {
-    return {
-        A: from.A - amount.A,
-        B: from.B - amount.B,
-        C: from.C - amount.C,
-        D: from.D - amount.D,
-    };
-};
-const isNegative = (res: Resources): boolean => {
-    return res.A < 0 || res.B < 0 || res.C < 0 || res.D < 0;
-};
-const resourcesToString = (res: Resources): string => {
-    const out: string[] = [];
-    if (res.A > 0) { out.push(`${res.A}A`); }
-    if (res.B > 0) { out.push(`${res.B}B`); }
-    if (res.C > 0) { out.push(`${res.C}C`); }
-    if (res.D > 0) { out.push(`${res.D}D`); }
-
-    return out.join(', ');
-};
 
 export function growRule(game: BaseGame, command: Command): RuleResponse {
     const state = game.state as GameState;
     const playerId = command.playerId;
     const player = game.state.players.find(p => p.id === playerId)! as Player;
+    const messages: string[] = [];
     function respond(message: string): RuleResponse {
+        messages.push(message);
         return {
             playerId: playerId,
-            actions: [message],
+            actions: messages,
         };
     }
 
@@ -49,6 +23,11 @@ export function growRule(game: BaseGame, command: Command): RuleResponse {
     const type = command.params[3] as EntityType;
     const direction = command.params[4] as OrganDir;
     const parentEntity = findEntityById(id, state.entities);
+
+    // Check actions count
+    if (player.actions < 1) {
+        return respond('too many actions were provided');
+    }
 
     // check if cell belongs to player
     {
@@ -61,10 +40,10 @@ export function growRule(game: BaseGame, command: Command): RuleResponse {
     const dx = pos.x - parentEntity.x;
     const dy = pos.y - parentEntity.y;
     if (Math.abs(dx) >= 1 && Math.abs(dy) >= 1) {
-        if (Math.abs(dx) >= 1 && !findEntityAtPosition({x: parentEntity.x + dx, y: parentEntity.y}, state.entities)) {
-            pos = {x: parentEntity.x + dx, y: parentEntity.y};
-        } else if (Math.abs(dy) >= 1 && !findEntityAtPosition({x: parentEntity.x, y: parentEntity.y + dy}, state.entities)) {
-            pos = {x: parentEntity.x, y: parentEntity.y + dy};
+        if (Math.abs(dx) >= 1 && canGrowAtPosition({ x: parentEntity.x + dx, y: parentEntity.y }, state.entities)) {
+            pos = { x: parentEntity.x + dx, y: parentEntity.y };
+        } else if (Math.abs(dy) >= 1 && canGrowAtPosition({ x: parentEntity.x, y: parentEntity.y + dy }, state.entities)) {
+            pos = { x: parentEntity.x, y: parentEntity.y + dy };
         }
     }
 
@@ -80,15 +59,15 @@ export function growRule(game: BaseGame, command: Command): RuleResponse {
         return respond(`cannot grow type (${type})`);
     }
     const cost = cellCosts.get(type)!;
-    const newResources = substract(player.resources, cost);
+    let newResources = substract(player.resources, cost);
     if (isNegative(newResources)) {
         return respond(`cannot afford to grow (${type})`);
     }
 
     // Check if cell is occupied
+    const entity = findEntityAtPosition(pos, state.entities);
     {
-        const entity = findEntityAtPosition(pos, state.entities);
-        if (entity) {
+        if (entity && !entity.isProtein()) {
             if (entity.createdOnTurn === state.turn) {
                 // collision
                 game.emit('collision', pos);
@@ -98,6 +77,20 @@ export function growRule(game: BaseGame, command: Command): RuleResponse {
     }
 
     // Create entity, set the turn!!
+    if (entity && entity.isProtein()) {
+        const type = entity.type as Extract<EntityType, 'A' | 'B' | 'C' | 'D'>;
+        const gain: Resources = {A: 0, B: 0, C: 0, D: 0};
+        gain[type] = 3;
+        newResources = add(newResources, gain);
+        messages.push(`gained 3${type} from absorption`);
+    }
+    const players = state.players.map(player => {
+        if (player.id === playerId) {
+            return { ...player, actions: player.actions - 1, resources: newResources };
+        }
+
+        return player;
+    });
     (game as Game).patchState(state => ({
         entities: [
             ...state.entities,
@@ -105,7 +98,8 @@ export function growRule(game: BaseGame, command: Command): RuleResponse {
                 state.entities.length,
                 pos, type, state.turn, playerId, direction, parentEntity.id, parentEntity.rootId
             )
-        ]
+        ],
+        players
     }));
 
     return respond(`consumed ${resourcesToString(cost)} for growth`);

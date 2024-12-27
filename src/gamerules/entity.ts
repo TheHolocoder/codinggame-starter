@@ -22,7 +22,8 @@ export class Entity extends Point {
 
     isCell = (): boolean => this.type === 'ROOT' || this.type === 'BASIC' || this.type === 'HARVESTER';
     isWall = (): boolean => this.type === 'WALL';
-    isProtein = (type: Extract<EntityType, 'A' | 'C' | 'D'>): boolean => this.type === type;
+    isProtein = (): boolean => this.type === 'A' || this.type === 'B' || this.type === 'C' || this.type === 'D';
+    isProteinOfType = (type: Extract<EntityType, 'A' | 'B' | 'C' | 'D'>): boolean => this.type === type;
     isMyOrgan = (playerId: PlayerID): boolean => this.isCell() && this.owner === playerId;
     isMyRoot = (playerId: PlayerID): boolean => this.isCell() && this.owner === playerId && this.type === 'ROOT';
     isOppRoot = (playerId: PlayerID): boolean => this.isCell() && this.owner !== playerId && this.type === 'ROOT';
