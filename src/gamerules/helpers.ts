@@ -1,5 +1,5 @@
-import { equals, Point } from '../../libs/utils';
-import { Entity, EntityType } from './entity';
+import { equals, gridDistance, Point } from '../../libs/utils';
+import { Entity, EntityType, OrganDir } from './entity';
 import { Resources } from './player';
 
 export const findEntityAtPosition = (pos: Point, entities: Entity[]): Entity | undefined => {
@@ -8,16 +8,18 @@ export const findEntityAtPosition = (pos: Point, entities: Entity[]): Entity | u
 
 export const applyTargetsToCells = (entities: Entity[]): void => {
     for (const entity of entities) {
-        const target = entity.targetPosition;
-        if (target) {
-            entity.targetEntity = findEntityAtPosition(target, entities);
+        const targetPos = entity.targetPosition;
+        if (null !== targetPos) {
+            const target = findEntityAtPosition(targetPos, entities);
+            target?.targetedBy.push(entity);
+            entity.targetEntity = target;
         }
     }
 };
 
 export const canGrowAtPosition = (pos: Point, entities: Entity[]): boolean => {
     applyTargetsToCells(entities);
-    const target = entities.filter(entity => entity.targetPosition && equals(pos, entity.targetPosition));
+    const target = entities.find(entity => null !== entity.targetPosition && equals(pos, entity.targetPosition));
     if (target) {
         return false;
     }
@@ -27,6 +29,43 @@ export const canGrowAtPosition = (pos: Point, entities: Entity[]): boolean => {
 
 export const findEntityById = (id: number, entities: Entity[]): Entity | undefined => {
     return entities.find(entity => entity.id === id);
+};
+
+export const outOfBounds = (pos: Point, width: number, height: number): boolean => {
+    return pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height;
+};
+
+export const isAdjacent = (from: Point, other: Point): boolean => {
+    return (Math.abs(from.x - other.x) === 1 && from.y === other.y) || (Math.abs(from.y - other.y) === 1 && from.x === other.x);
+};
+
+export const getDirection = (from: Point, to: Point): OrganDir => {
+    if (to.x > from.x) {
+        return 'E';
+    }
+    if (to.x < from.x) {
+        return 'W';
+    }
+    if (to.y > from.y) {
+        return 'S';
+    }
+
+    return 'N';
+};
+
+export const getClosestEntities = (set1: Entity[], set2: Entity[]): {distance: number, source: Entity, target: Entity}[] => {
+    const distances: {distance: number, source: Entity, target: Entity}[] = [];
+    for (const cell of set1) {
+        for (const protein of set2) {
+            distances.push({
+                source: cell,
+                distance: gridDistance(cell, protein),
+                target: protein
+            });
+        }
+    }
+
+    return distances.sort((a, b) => a.distance < b.distance ? -1 : 1);
 };
 
 export const cellCosts = new Map<EntityType, Resources>();

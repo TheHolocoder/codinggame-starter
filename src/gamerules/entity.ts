@@ -6,6 +6,7 @@ export type OrganDir = 'N' | 'S' | 'E' | 'W' | 'X'; // N,E,S,W or X if not an or
 
 export class Entity extends Point {
     targetEntity: Entity | undefined = undefined;
+    targetedBy: Entity[] = [];
 
     constructor(
         public id: number,

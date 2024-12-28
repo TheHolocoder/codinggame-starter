@@ -1,5 +1,7 @@
 import { BaseGame, Command, PlayerID } from '../../libs/game';
+import { d } from '../../libs/utils';
 import { GameState } from './gamestate';
+import { applyTargetsToCells } from './helpers';
 import { Player, Resources } from './player';
 import { attackRule } from './rules/attack';
 import { collisionRule } from './rules/collision';
@@ -14,7 +16,7 @@ const defaultResources: Resources = {
 };
 
 export class Game extends BaseGame {
-    maxTurns = 10;
+    maxTurns = 100;
     inProgress = true;
 
     get state(): Readonly<GameState> {
@@ -35,7 +37,7 @@ export class Game extends BaseGame {
         this.attachRule(AttackEvent, attackRule);
     }
 
-    step() {
+    step(state?: GameState) {
         /**
          * Ordre des actions pour un tour
          *
@@ -45,15 +47,16 @@ export class Game extends BaseGame {
          * Les attaques de tentacules sont calculées.
          * Les conditions de fin de partie sont vérifiées.
          */
+        if (!state) {
+            state = this._state;
+        }
         this.patchState(state => ({ turn: state.turn + 1 }));
-
-        // @TODO: compute #actions per player
 
         // PLAYER COMMANDS AND ACTIONS
         const commands: Record<string, Command[]> = {};
-        for (const player of this._state.players) {
+        for (const player of state.players) {
             // actions
-            player.actions = this.state.entities.filter(entity => entity.owner === player.id && entity.type === 'ROOT').length;
+            player.actions = state.entities.filter(entity => entity.owner === player.id && entity.type === 'ROOT').length;
 
             // commands
             for (const cmd of player.pendingOutputCommands) {
@@ -77,17 +80,14 @@ export class Game extends BaseGame {
         }
 
         // HARVEST
-        for (const player of this.state.players) {
+        for (const player of state.players) {
             this.emit(HarvestEvent, player.id);
         }
 
         // ATTACK
-        for (const player of this.state.players) {
+        for (const player of state.players) {
             this.emit(AttackEvent, player.id);
         }
-
-        //
-        this.checkEndCondition();
     }
 
     patchState(patcher: (state: Readonly<GameState>) => Partial<GameState>): void {
@@ -101,7 +101,7 @@ export class Game extends BaseGame {
         // one player has no more ROOT
         for (const player of this.state.players) {
              if (0 === this.state.entities.filter(entity => entity.owner === player.id && entity.type === 'ROOT').length) {
-                console.info(`Player (${player.id}) has no more roots`);
+                d(`Player (${player.id}) has no more roots`);
                 this.inProgress = false;
 
                 return;
@@ -110,7 +110,7 @@ export class Game extends BaseGame {
 
         // turn count
         if (this.state.turn >= this.maxTurns) {
-            console.info('Max turns elapsed');
+            d('Max turns elapsed');
             this.inProgress = false;
 
             return;
@@ -122,7 +122,7 @@ export class Game extends BaseGame {
                 0 === this.state.entities.filter(entity => entity.owner === player.id && entity.type === 'HARVESTER').length
                 && player.resources.A === 0 && player.resources.B === 0 && player.resources.C === 0 && player.resources.D === 0
             ) {
-                console.info(`Player (${player.id}) has no more resources`);
+                d(`Player (${player.id}) has no more resources`);
                 this.inProgress = false;
 
                 return;
@@ -135,7 +135,13 @@ export class Game extends BaseGame {
     }
 
     isInProgress(): boolean {
+        this.checkEndCondition();
+
         return this.inProgress;
+    }
+
+    applyEntityMapping() {
+        applyTargetsToCells(this._state.entities);
     }
 
     protected createPlayer(id: PlayerID): Player {
