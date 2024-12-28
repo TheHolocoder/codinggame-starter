@@ -44,3 +44,8 @@ try {
 console.log('----- LOGS -----');
 simulation.logs.map(line => console.log(logToString(line)));
 
+console.log('\n==========\nRESULTS\n==========');
+for (const score of simulation.game.getPlayerScores()) {
+    console.log(`Player ${score.id}: ${score.score} points`);
+}
+
